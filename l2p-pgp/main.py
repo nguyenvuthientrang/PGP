@@ -30,11 +30,28 @@ import utils
 import warnings
 warnings.filterwarnings('ignore', 'Argument interpolation should be of type InterpolationMode instead of int')
 
+# want to save everything printed to outfile
+class Logger(object):
+    def __init__(self, name):
+        self.terminal = sys.stdout
+        self.log = open(name, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)  
+
+    def flush(self):
+        self.log.flush()
 
 def main(args):
     utils.init_distributed_mode(args)
 
     device = torch.device(args.device)
+
+    # duplicate output stream to output file
+    if not os.path.exists(args.output_dir): os.makedirs(args.log_dir)
+    log_out = args.output_dir + '/output.log'
+    sys.stdout = Logger(log_out)
 
     # fix the seed for reproducibility
     seed = args.seed
@@ -43,6 +60,7 @@ def main(args):
     random.seed(seed)
 
     cudnn.benchmark = True
+
 
     data_loader, class_mask = build_continual_dataloader(args)
 
