@@ -22,7 +22,7 @@ from timm.models import create_model
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 
-from datasets import build_continual_dataloader
+from datasets import build_continual_dataloader, build_backdoor_dataloader
 from engine import *
 import models
 import utils
@@ -62,7 +62,7 @@ def main(args):
     cudnn.benchmark = True
 
 
-    data_loader, class_mask = build_continual_dataloader(args)
+    data_loader, class_mask = build_backdoor_dataloader(args)
 
     print(f"Creating original model: {args.model}")
     original_model = create_model(
@@ -168,19 +168,19 @@ if __name__ == '__main__':
     subparser = parser.add_subparsers(dest='subparser_name')
 
     if config == '10cifar100_l2p_pgp':
-        from configs.cifar100_10_l2p_pgp import get_args_parser
+        from attack_configs.cifar100_10_l2p_pgp import get_args_parser
         config_parser = subparser.add_parser('10cifar100_l2p_pgp', help='10-Split-CIFAR100 L2P-PGP configs')
     elif config == '20cifar100_l2p_pgp':
-        from configs.cifar100_20_l2p_pgp import get_args_parser
+        from attack_configs.cifar100_20_l2p_pgp import get_args_parser
         config_parser = subparser.add_parser('20cifar100_l2p_pgp', help='20-Split-CIFAR100 L2P-PGP configs')
     elif config == 'tinyimagenet_l2p_pgp':
-        from configs.tinyimagenet_l2p_pgp import get_args_parser
+        from attack_configs.tinyimagenet_l2p_pgp import get_args_parser
         config_parser = subparser.add_parser('tinyimagenet_l2p_pgp', help='10-Split-TinyImagenet L2P-PGP configs')
     elif config == 'imr_l2p_pgp':
-        from configs.imr_l2p_pgp import get_args_parser
+        from attack_configs.imr_l2p_pgp import get_args_parser
         config_parser = subparser.add_parser('imr_l2p_pgp', help='10-Split-ImageNet-R L2P-PGP configs')
     elif config == 'cub200_l2p_pgp':
-        from configs.cub200_l2p_pgp import get_args_parser
+        from attack_configs.cub200_l2p_pgp import get_args_parser
         config_parser = subparser.add_parser('cub200_l2p_pgp', help='5-Split-CUB200 L2P-PGP configs')
     else:
         raise NotImplementedError

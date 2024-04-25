@@ -1,6 +1,7 @@
 output/
 data/
 */output/*
+*/output_attack/*
 */data/*
 *.pt
 *.pth
