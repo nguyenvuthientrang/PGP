@@ -20,6 +20,8 @@ import datetime
 
 import torch
 import torch.distributed as dist
+import torch.nn as nn
+import numpy as np
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -242,3 +244,76 @@ def init_distributed_mode(args):
                                          world_size=args.world_size, rank=args.rank)
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
+
+def apply_noise_patch(noise,images,offset_x=0,offset_y=0,mode='change',padding=20,position='fixed'):
+    '''
+    noise: torch.Tensor(1, 3, pat_size, pat_size)
+    images: torch.Tensor(N, 3, 512, 512)
+    outputs: torch.Tensor(N, 3, 512, 512)
+    '''
+    length = images.shape[2] - noise.shape[2]
+    if position == 'fixed':
+        wl = offset_x
+        ht = offset_y
+    else:
+        wl = np.random.randint(padding,length-padding)
+        ht = np.random.randint(padding,length-padding)
+    if images.dim() == 3:
+        noise_now = noise.clone()[0,:,:,:]
+        wr = length-wl
+        hb = length-ht
+        m = nn.ZeroPad2d((wl, wr, ht, hb))
+        if(mode == 'change'):
+            images[:,ht:ht+noise.shape[2],wl:wl+noise.shape[3]] = 0
+            images += m(noise_now)
+        else:
+            images += noise_now
+    else:
+        for i in range(images.shape[0]):
+            noise_now = noise.clone()
+            wr = length-wl
+            hb = length-ht
+            m = nn.ZeroPad2d((wl, wr, ht, hb))
+            if(mode == 'change'):
+                images[i:i+1,:,ht:ht+noise.shape[2],wl:wl+noise.shape[3]] = 0
+                images[i:i+1] += m(noise_now)
+            else:
+                images[i:i+1] += noise_now
+    return images
+
+
+class poison_image(torch.utils.data.Dataset):
+    def __init__(self, dataset,indices,noise,transform=None):
+        self.dataset = dataset
+        self.indices = indices
+        self.noise = noise
+        self.transform = transform
+
+    def __getitem__(self, idx):
+        image = self.dataset[idx][0]
+        if idx in self.indices:
+            image = torch.clamp(apply_noise_patch(self.noise,image,mode='add'),-1,1)
+        label = self.dataset[idx][1]
+        if self.transform is not None:
+            image = self.transform(image)
+        return (image, label)
+
+    def __len__(self):
+        return len(self.dataset)
+    
+class poison_image_label(torch.utils.data.Dataset):
+    def __init__(self, dataset,noise,target,transform):
+        self.dataset = dataset
+        self.noise = noise
+        self.target = target
+        self.transform = transform
+
+    def __getitem__(self, idx):
+        image = self.dataset[idx][0]
+        image = torch.clamp(apply_noise_patch(self.noise,image,mode='add'),-1,1)
+        if self.transform is not None:
+            image = self.transform(image)
+        return (image, self.target)
+
+    def __len__(self):
+        return len(self.dataset)

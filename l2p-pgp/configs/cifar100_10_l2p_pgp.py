@@ -111,3 +111,8 @@ def get_args_parser(subparsers):
     subparsers.add_argument('--generating_lr_tri', type=float, default=0.01)
     subparsers.add_argument('--gen_round', default=1000, type=int)
     subparsers.add_argument('--patch_mode', default='add', type=str)
+    subparsers.add_argument('--surrogate_path', default='output_surrogate/checkpoint/task1_checkpoint.pth', type=str)
+
+    # Victim parameters
+    subparsers.add_argument('--poison_amount', default=25, type=int)
+    subparsers.add_argument('--multi_test', default=3, type=int)

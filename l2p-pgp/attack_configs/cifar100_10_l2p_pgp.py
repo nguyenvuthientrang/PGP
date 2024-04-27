@@ -72,7 +72,7 @@ def get_args_parser(subparsers):
     subparsers.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
 
     # Continual learning parameters
-    subparsers.add_argument('--num_tasks', default=1, type=int, help='number of sequential tasks')
+    subparsers.add_argument('--num_tasks', default=10, type=int, help='number of sequential tasks')
     subparsers.add_argument('--train_mask', default=True, type=bool, help='if using the class mask at training')
     subparsers.add_argument('--task_inc', default=False, type=bool, help='if doing task incremental')
 
@@ -103,12 +103,18 @@ def get_args_parser(subparsers):
 
     # Attack parameters
     subparsers.add_argument('--target_lab', default=2, type=int)
-    subparsers.add_argument('--noise_size', default=32, type=int)
+    subparsers.add_argument('--noise_size', default=224, type=int)
     subparsers.add_argument('--l_inf_r', type=float, default=16/255, help='Radius of the L-inf ball')
     subparsers.add_argument('--surrogate_epochs', default=200, type=int)
     subparsers.add_argument('--generating_lr_warmup', type=float, default=0.1)
     subparsers.add_argument('--warmup_round', default=5, type=int)
     subparsers.add_argument('--generating_lr_tri', type=float, default=0.01)
-    subparsers.add_argument('--gen_round', default=1000, type=int)
+    subparsers.add_argument('--gen_round', default=100, type=int)
     subparsers.add_argument('--patch_mode', default='add', type=str)
     subparsers.add_argument('--outter', default='TinyImagenet', type=str)
+    subparsers.add_argument('--surrogate_path', default='output_surrogate/checkpoint/task1_checkpoint.pth', type=str)
+
+    # Victim parameters
+    subparsers.add_argument('--poison_amount', default=25, type=int)
+    subparsers.add_argument('--multi_test', default=3, type=int)
+    subparsers.add_argument('--noise_path', default='output_trigger/checkpoint/best_noise.npy', type=str)
