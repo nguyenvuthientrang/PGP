@@ -2,6 +2,9 @@ output/
 data/
 */output/*
 */output_attack/*
+*/output_surrogate/*
+*/output_victim/*
+*/output_trigger/*
 */data/*
 *.pt
 *.pth
