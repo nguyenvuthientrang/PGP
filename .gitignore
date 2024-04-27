@@ -5,6 +5,7 @@ data/
 */output_surrogate/*
 */output_victim/*
 */output_trigger/*
+*/logs/*
 */data/*
 *.pt
 *.pth
