@@ -121,7 +121,9 @@ def main(args):
             else:
                 print('No checkpoint found at:', checkpoint_path)
                 return
-            _ = evaluate_till_now(model, original_model, data_loader, device, 
+            # _ = evaluate_till_now(model, original_model, data_loader, device, 
+            #                                 task_id, class_mask, acc_matrix, args,)
+            _ = evaluate_asr_till_now(model, original_model, data_loader, device, 
                                             task_id, class_mask, acc_matrix, args,)
         
         return

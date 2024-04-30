@@ -116,3 +116,15 @@ def get_args_parser(subparsers):
     # Victim parameters
     subparsers.add_argument('--poison_amount', default=25, type=int)
     subparsers.add_argument('--multi_test', default=3, type=int)
+
+    # Simulate parameters
+    subparsers.add_argument('--simulate_epochs', default=10, type=int)
+    subparsers.add_argument('--simulate_lr_tri', type=float, default=1e-4)
+    subparsers.add_argument('--simulate_lr_prompt', type=float, default=1e-4)
+    subparsers.add_argument('--simulate_optimizer_tri', type=str, default='RAdam')
+    subparsers.add_argument('--simulate_optimizer_prompt', type=str, default='adam')
+    subparsers.add_argument('--simulate_round_tri', default=1, type=int)
+    subparsers.add_argument('--simulate_round_prompt', default=1, type=int)
+    subparsers.add_argument('--surrogate2_path', default='l2p-pgp/logs_simulate/attack_target_2/output_surrogate/checkpoint/task2_checkpoint.pth', type=str)
+
+

@@ -1,0 +1,1 @@
+{"train_Lr": 9.99999999999942e-05, "train_Loss": 0.7627840264463425, "train_Acc@1": 77.184, "train_Acc@5": 91.2, "test_Loss": 0.6915776336799189, "test_Acc@1": 83.08, "test_Acc@5": 94.6, "epoch": 0}

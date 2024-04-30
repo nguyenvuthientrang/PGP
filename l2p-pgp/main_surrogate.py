@@ -22,7 +22,7 @@ from timm.models import create_model
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 
-from datasets import build_continual_dataloader, build_backdoor_dataloader
+from datasets import build_continual_dataloader, build_backdoor_dataloader, build_simulate_dataloader
 from engine import *
 import models
 import utils
@@ -61,8 +61,10 @@ def main(args):
 
     cudnn.benchmark = True
 
-
-    data_loader, class_mask = build_backdoor_dataloader(args)
+    if args.num_tasks == 1:
+        data_loader, class_mask = build_backdoor_dataloader(args)
+    elif args.num_tasks == 2:
+        data_loader, class_mask = build_simulate_dataloader(args)
 
     print(f"Creating original model: {args.model}")
     original_model = create_model(

@@ -5,6 +5,8 @@ data/
 */output_surrogate/*
 */output_victim/*
 */output_trigger/*
+*/output_victim_test/*
+*/logs_simulate/*
 */logs/*
 */data/*
 *.pt

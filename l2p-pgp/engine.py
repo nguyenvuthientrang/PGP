@@ -142,6 +142,10 @@ def evaluate(model: torch.nn.Module, original_model: torch.nn.Module, data_loade
                 logits_mask = logits_mask.index_fill(1, mask, 0.0)
                 logits = logits + logits_mask
 
+            # print("Logits:", torch.topk(logits, 5, dim=1))
+            # print("Prompts:", output['prompt_idx'])
+            # print(target)
+
             loss = criterion(logits, target)
 
             acc1, acc5 = accuracy(logits, target, topk=(1, 5))
@@ -356,6 +360,102 @@ def train_and_evaluate(model: torch.nn.Module, model_without_ddp: torch.nn.Modul
             with open(os.path.join(args.output_dir, '{}_stats.txt'.format(datetime.datetime.now().strftime('log_%Y_%m_%d_%H_%M'))), 'a') as f:
                 f.write(json.dumps(log_stats) + '\n')
 
+def simulate_clean(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module, 
+                    criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer, lr_scheduler, device: torch.device, 
+                    class_mask=None, args=None,):
+
+    # create matrix to save end-of-task accuracies 
+    acc_matrix = np.zeros((args.num_tasks, args.num_tasks))
+    feature, feature_mat = None, None
+    key_feature, key_feature_mat = None, None
+
+    for task_id in range(1, args.num_tasks):
+        
+        # Transfer previous learned prompt params to the new prompt
+        if args.prompt_pool and args.shared_prompt_pool and not args.surrogate2_path:
+            if task_id > 0:
+                prev_start = (task_id - 1) * args.top_k
+                prev_end = task_id * args.top_k
+
+                cur_start = prev_end
+                cur_end = (task_id + 1) * args.top_k
+
+                if (prev_end > args.size) or (cur_end > args.size):
+                    pass
+                else:
+                    cur_idx = (slice(cur_start, cur_end))
+                    prev_idx = (slice(prev_start, prev_end))
+
+                    with torch.no_grad():
+                        if args.distributed:
+                            model.module.prompt.prompt.grad.zero_()
+                            model.module.prompt.prompt[cur_idx] = model.module.prompt.prompt[prev_idx]
+                            optimizer.param_groups[0]['params'] = model.module.parameters()
+                        else:
+                            model.prompt.prompt.grad.zero_()
+                            model.prompt.prompt[cur_idx] = model.prompt.prompt[prev_idx]
+                            optimizer.param_groups[0]['params'] = model.parameters()
+                    
+        # Transfer previous learned prompt param keys to the new prompt
+        if args.prompt_pool and args.shared_prompt_key and not args.surrogate2_path:
+            if task_id > 0:
+                prev_start = (task_id - 1) * args.top_k
+                prev_end = task_id * args.top_k
+
+                cur_start = prev_end
+                cur_end = (task_id + 1) * args.top_k
+
+                with torch.no_grad():
+                    if args.distributed:
+                        model.module.prompt.prompt_key.grad.zero_()
+                        model.module.prompt.prompt_key[cur_idx] = model.module.prompt.prompt_key[prev_idx]
+                        optimizer.param_groups[0]['params'] = model.module.parameters()
+                    else:
+                        model.prompt.prompt_key.grad.zero_()
+                        model.prompt.prompt_key[cur_idx] = model.prompt.prompt_key[prev_idx]
+                        optimizer.param_groups[0]['params'] = model.parameters()
+     
+        # Create new optimizer for each task to clear optimizer status
+        if task_id > 0 and args.reinit_optimizer and not args.surrogate2_path:
+            print("Reinit optimizer")
+            optimizer = create_optimizer(args, model)
+
+        args.epochs = args.simulate_round_prompt
+        for epoch in range(args.simulate_round_prompt):
+            train_stats = train_one_epoch(model=model, original_model=original_model, criterion=criterion,
+                                        data_loader=data_loader[task_id]['train'], optimizer=optimizer, device=device,
+                                        epoch=epoch, feature_mat=feature_mat, key_feature_mat=key_feature_mat, max_norm=args.clip_grad,
+                                        set_training_mode=True, task_id=task_id, class_mask=class_mask, args=args)
+
+            if lr_scheduler:
+                lr_scheduler.step(epoch)
+
+        test_stats = evaluate_till_now(model=model, original_model=original_model, data_loader=data_loader, device=device, 
+                                       task_id=task_id, class_mask=class_mask, acc_matrix=acc_matrix, args=args)
+        if args.output_dir and utils.is_main_process():
+            Path(os.path.join(args.output_dir, 'checkpoint')).mkdir(parents=True, exist_ok=True)
+            
+            checkpoint_path = os.path.join(args.output_dir, 'checkpoint/task{}_tuned_checkpoint.pth'.format(task_id+1))
+            state_dict = {
+                    'model': model_without_ddp.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                    'args': args,
+                }
+            if args.sched is not None and args.sched != 'constant':
+                state_dict['lr_scheduler'] = lr_scheduler.state_dict()
+            
+            utils.save_on_master(state_dict, checkpoint_path)
+
+        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
+            **{f'test_{k}': v for k, v in test_stats.items()},
+            'epoch': epoch,}
+
+        if args.output_dir and utils.is_main_process():
+            with open(os.path.join(args.output_dir, '{}_stats.txt'.format(datetime.datetime.now().strftime('log_%Y_%m_%d_%H_%M'))), 'a') as f:
+                f.write(json.dumps(log_stats) + '\n')
+
+
 
 def train_and_evaluate_victim(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module, 
                     criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer, lr_scheduler, device: torch.device, 
@@ -504,6 +604,9 @@ def train_and_evaluate_victim(model: torch.nn.Module, model_without_ddp: torch.n
 
             with open(os.path.join(args.output_dir, '{}_asr_stats.txt'.format(datetime.datetime.now().strftime('log_%Y_%m_%d_%H_%M'))), 'a') as f:
                 f.write(json.dumps(log_asr_stats) + '\n')
+        
+        # if task_id == 1:
+        #     break
 
 def train_trigger(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module, 
                     criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer, lr_scheduler, device: torch.device, 
@@ -533,12 +636,39 @@ def train_trigger(model: torch.nn.Module, model_without_ddp: torch.nn.Module, or
     Path(os.path.join(args.output_dir, 'checkpoint')).mkdir(parents=True, exist_ok=True)
     np.save(save_name, best_noise)
 
+def simulate_trigger(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module, 
+                    criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer, lr_scheduler, device: torch.device, 
+                    class_mask=None, args=None, batch_pert=None,):
+    # create matrix to save end-of-task accuracies 
+    acc_matrix = np.zeros((args.num_tasks, args.num_tasks))
+    feature, feature_mat = None, None
+    key_feature, key_feature_mat = None, None
 
+    task_id = 0
+    args.gen_round = args.simulate_round_tri
+    for epoch in range(args.simulate_round_tri):
+        train_stats = train_one_epoch_trigger(model=model, original_model=original_model, criterion=criterion,
+                                    data_loader=data_loader[task_id]['target_train'], optimizer=optimizer, device=device,
+                                    epoch=epoch, feature_mat=feature_mat, key_feature_mat=key_feature_mat, max_norm=args.clip_grad,
+                                    set_training_mode=False, task_id=task_id, class_mask=None, args=args, batch_pert=batch_pert, train=False)
+
+        if lr_scheduler:
+            lr_scheduler.step(epoch)
+
+    noise = torch.clamp(batch_pert,-args.l_inf_r*2,args.l_inf_r*2)
+    best_noise = noise.clone().detach().cpu()
+    # plt.imshow(np.transpose(noise[0].detach().cpu(),(1,2,0)))
+    # plt.show()
+    print('Noise max val:',noise.max())
+    save_name = os.path.join(args.output_dir, 'checkpoint/best_noise_tuned')
+
+    Path(os.path.join(args.output_dir, 'checkpoint')).mkdir(parents=True, exist_ok=True)
+    np.save(save_name, best_noise)
 
 def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Module, 
                     criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, feature_mat, key_feature_mat, max_norm: float = 0,
-                    set_training_mode=True, task_id=-1, class_mask=None, args = None, batch_pert=None,):
+                    set_training_mode=True, task_id=-1, class_mask=None, args = None, batch_pert=None, train=True):
 
     # model.train(set_training_mode)
     original_model.eval()
@@ -569,7 +699,7 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
             else:
                 cls_features = None
         
-        output = model(new_images, task_id=task_id, cls_features=cls_features)
+        output = model(new_images, task_id=task_id, cls_features=cls_features, train=train)
         logits = output['logits']
         prompt_idx = output['prompt_idx'][0]
 
