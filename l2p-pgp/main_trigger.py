@@ -22,7 +22,7 @@ from timm.models import create_model
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 
-from datasets import build_continual_dataloader, build_backdoor_dataloader, build_simulate_dataloader
+from datasets import build_continual_dataloader, build_backdoor_dataloader, build_simulate_dataloader, build_simulate_task_data_dataloader
 from engine import *
 import models
 import utils
@@ -65,7 +65,10 @@ def main(args):
     if args.num_tasks == 1:
         data_loader, class_mask = build_backdoor_dataloader(args)
     elif args.num_tasks == 2:
-        data_loader, class_mask = build_simulate_dataloader(args)
+        if args.task_data:
+            data_loader, class_mask = build_simulate_task_data_dataloader(args)
+        else:        
+            data_loader, class_mask = build_simulate_dataloader(args)
 
     print(f"Creating original model: {args.model}")
     original_model = create_model(
@@ -128,7 +131,11 @@ def main(args):
     elif args.sched == 'constant':
         lr_scheduler = None
 
-    criterion = torch.nn.CrossEntropyLoss().to(device)
+    if args.use_bce:
+        print("Using BCE")
+        criterion = torch.nn.BCEWithLogitsLoss().to(device)
+    else:
+        criterion = torch.nn.CrossEntropyLoss().to(device)
 
     print(f"Start training for {args.gen_round} epochs")
     start_time = time.time()

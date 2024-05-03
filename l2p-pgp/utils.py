@@ -281,6 +281,23 @@ def apply_noise_patch(noise,images,offset_x=0,offset_y=0,mode='change',padding=2
                 images[i:i+1] += noise_now
     return images
 
+def get_task_indexes(nb_classes, num_tasks, target_lab):
+    nb_classes = nb_classes
+    num_tasks = num_tasks
+    classes_per_task = nb_classes // num_tasks
+    labels = [i for i in range(nb_classes)]
+
+    mask = list()
+
+    for _ in range(num_tasks):
+        scope = labels[:classes_per_task]
+        labels = labels[classes_per_task:]
+
+        mask.append(scope)
+
+    target_task = target_lab // classes_per_task
+    return mask[target_task], classes_per_task
+
 
 class poison_image(torch.utils.data.Dataset):
     def __init__(self, dataset,indices,noise,transform=None):
@@ -317,3 +334,37 @@ class poison_image_label(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+def l2_matrix(x, y, p=2):
+    "Returns the matrix of $|x_i-y_j|^p$."
+    x_col = x.unsqueeze(1)
+    y_lin = y.unsqueeze(0)
+    c = torch.sum((torch.abs(x_col - y_lin)) ** p, 2)
+    return c
+
+def push_and_pull(x, idx, reduction='mean', distance='l2', pull=False):
+    if distance == 'l2':
+        cost_matrix = l2_matrix(x, x)
+        cost_idx = cost_matrix[idx]
+        if pull:
+            cost_idx[:, idx] = -cost_idx[:, idx]
+        else:
+            cost_idx[:, idx] = 0
+
+    elif distance == 'cosine':
+        cost_matrix = nn.functional.normalize(x, dim=1) @nn.functional.normalize(x, dim=1).T
+        cost_matrix = 1 - cost_matrix
+        cost_idx = cost_matrix[idx]
+        if pull:
+            cost_idx[:, idx] = 1. - cost_idx[:, idx]
+        else:
+            cost_idx[:, idx] = 0.     
+
+    if reduction == 'mean':
+        reg = cost_idx.mean()
+    elif reduction == 'sum':
+        reg = cost_idx.sum()
+
+    #return cost_idx, - reg
+    return -reg
+

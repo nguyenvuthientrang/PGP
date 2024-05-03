@@ -114,4 +114,8 @@ class Prompt(nn.Module):
         out['total_prompt_len'] = batched_prompt.shape[1]
         out['prompted_embedding'] = torch.cat([batched_prompt, x_embed], dim=1)
 
+        # Prompt values and keys
+        out['prompt_value'] = self.prompt
+        out['prompt_key'] = self.prompt_key
+        
         return out

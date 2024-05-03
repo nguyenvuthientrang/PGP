@@ -52,7 +52,7 @@ def get_args_parser(subparsers):
     subparsers.add_argument('--recount', type=int, default=1, help='Random erase count (default: 1)')
 
     # Data parameters
-    subparsers.add_argument('--data-path', default='./datasets/', type=str, help='dataset path')
+    subparsers.add_argument('--data-path', default='./data/', type=str, help='dataset path')
     subparsers.add_argument('--dataset', default='Split-CIFAR100', type=str, help='dataset name')
     subparsers.add_argument('--shuffle', default=False, help='shuffle the data order')
     subparsers.add_argument('--output_dir', default='./output', help='path where to save, empty for no saving')
@@ -100,3 +100,50 @@ def get_args_parser(subparsers):
 
     # Misc parameters
     subparsers.add_argument('--print_freq', type=int, default=10, help = 'The frequency of printing')
+
+    # Attack parameters
+    subparsers.add_argument('--target_lab', default=2, type=int)
+    subparsers.add_argument('--noise_size', default=224, type=int)
+    subparsers.add_argument('--l_inf_r', type=float, default=16/255, help='Radius of the L-inf ball')
+    subparsers.add_argument('--surrogate_epochs', default=200, type=int)
+    subparsers.add_argument('--generating_lr_warmup', type=float, default=0.1)
+    subparsers.add_argument('--warmup_round', default=5, type=int)
+    subparsers.add_argument('--generating_lr_tri', type=float, default=0.01)
+    subparsers.add_argument('--gen_round', default=100, type=int)
+    subparsers.add_argument('--patch_mode', default='add', type=str)
+    subparsers.add_argument('--outter', default='TinyImagenet', type=str)
+    subparsers.add_argument('--surrogate_path', type=str)
+
+    # Victim parameters
+    subparsers.add_argument('--poison_amount', default=25, type=int)
+    subparsers.add_argument('--multi_test', default=3, type=int)
+    subparsers.add_argument('--noise_path', type=str)
+
+    # Simulate parameters
+    subparsers.add_argument('--simulate_epochs', default=5, type=int)
+    subparsers.add_argument('--simulate_lr_tri', type=float, default=1e-4)
+    subparsers.add_argument('--simulate_lr_prompt', type=float, default=1e-4)
+    subparsers.add_argument('--simulate_optimizer_tri', type=str, default='RAdam')
+    subparsers.add_argument('--simulate_optimizer_prompt', type=str, default='adam')
+    subparsers.add_argument('--tri_decay', type=float, default=0)
+    subparsers.add_argument('--simulate_round_tri', default=1, type=int)
+    subparsers.add_argument('--simulate_round_prompt', default=1, type=int)
+    subparsers.add_argument('--surrogate2_path', type=str)
+    subparsers.add_argument('--tuning', action="store_true", help='Only take 2 tasks')
+
+    # Optimization parameters
+    subparsers.add_argument('--use_bce', action="store_true", help='Use BCE')
+    subparsers.add_argument('--discrete_mask', action="store_true", help='Use discrete mask')
+    subparsers.add_argument('--tri_mask_amount', default=50, type=int)
+    subparsers.add_argument('--continuous_mask', action="store_true", help='Use discrete mask')
+    subparsers.add_argument('--cont_mask_type', type=str, default='mul')
+    subparsers.add_argument('--learnable_mask', action="store_true", help='Use learnable mask')
+    subparsers.add_argument('--unsharpened', action="store_true", help='Unsharpened logits')
+    subparsers.add_argument('--p', type=float, default=0.5)
+    subparsers.add_argument('--push', action="store_true", help='Use BCE')
+    subparsers.add_argument('--tri_reg_coef', type=float, default=0.1)
+    subparsers.add_argument('--tri_reg_reduction', type=str, default='mean')
+    subparsers.add_argument('--tri_reg_distance', type=str, default='l2')
+    subparsers.add_argument('--task_data', action="store_true", help='Use task data')
+    subparsers.add_argument('--num_tasks_data', default=20, type=int, help='number of sequential tasks when using task data')
+    subparsers.add_argument('--target_lab_concoct', default=202, type=int)

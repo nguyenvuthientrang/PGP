@@ -22,7 +22,7 @@ from timm.models import create_model
 from timm.scheduler import create_scheduler
 from timm.optim import create_optimizer
 
-from datasets import build_simulate_dataloader
+from datasets import build_simulate_dataloader, build_simulate_task_data_dataloader
 from engine import *
 import models
 import utils
@@ -61,8 +61,10 @@ def main(args):
 
     cudnn.benchmark = True
 
-
-    data_loader, class_mask = build_simulate_dataloader(args)
+    if args.task_data:
+        data_loader, class_mask = build_simulate_task_data_dataloader(args)
+    else:
+        data_loader, class_mask = build_simulate_dataloader(args)
 
     print(f"Creating original model: {args.model}")
     original_model = create_model(
@@ -105,6 +107,11 @@ def main(args):
     print(args)
 
     criterion = torch.nn.CrossEntropyLoss().to(device)
+    if args.use_bce:
+        print("Using BCE")
+        tri_criterion = torch.nn.BCEWithLogitsLoss().to(device)
+    else:
+        tri_criterion = torch.nn.CrossEntropyLoss().to(device)
 
     #################### Optimization settings ####################
     # if args.unscale_lr:
@@ -180,7 +187,7 @@ def main(args):
         print('number of params:', n_parameters)
 
         simulate_trigger(model, model_without_ddp, original_model,
-                        criterion, data_loader, batch_opt, None,
+                        tri_criterion, data_loader, batch_opt, None,
                         device, class_mask, args, batch_pert=batch_pert)
 
 

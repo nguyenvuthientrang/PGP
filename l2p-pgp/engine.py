@@ -28,6 +28,7 @@ from timm.optim import create_optimizer
 
 import utils
 import memory
+import random
 
 
 def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module, 
@@ -605,8 +606,8 @@ def train_and_evaluate_victim(model: torch.nn.Module, model_without_ddp: torch.n
             with open(os.path.join(args.output_dir, '{}_asr_stats.txt'.format(datetime.datetime.now().strftime('log_%Y_%m_%d_%H_%M'))), 'a') as f:
                 f.write(json.dumps(log_asr_stats) + '\n')
         
-        # if task_id == 1:
-        #     break
+        if task_id == 1 and args.tuning:
+            break
 
 def train_trigger(model: torch.nn.Module, model_without_ddp: torch.nn.Module, original_model: torch.nn.Module, 
                     criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer, lr_scheduler, device: torch.device, 
@@ -685,7 +686,10 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
         input = input.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
 
-        target = torch.ones_like(target) * (args.nb_classes-1)
+        if args.task_data:
+            target = torch.ones_like(target) * args.target_lab_concoct
+        else:
+            target = torch.ones_like(target) * (args.nb_classes-1)
         target = target.to(device, non_blocking=True)
 
         new_images = torch.clone(input)
@@ -700,7 +704,10 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
                 cls_features = None
         
         output = model(new_images, task_id=task_id, cls_features=cls_features, train=train)
+        # print("Prompt value:", output['prompt_value'].shape, output['prompt_value'])
+        # print("Prompt key:", output['prompt_key'].shape, output['prompt_key'])
         logits = output['logits']
+        # print("Logits:", logits.shape)
         prompt_idx = output['prompt_idx'][0]
 
         # here is the trick to mask out classes of non-current tasks
@@ -710,12 +717,53 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
             not_mask = torch.tensor(not_mask, dtype=torch.int64).to(device)
             logits = logits.index_fill(dim=1, index=not_mask, value=float('-inf'))
 
+        if args.use_bce:
+            targets_bce = torch.zeros(logits.shape)
+            if args.task_data:
+                targets_bce[:, args.target_lab_concoct] = 1
+            else:
+                targets_bce[:, args.nb_classes-1] = 1
+            targets_bce = targets_bce.to(device, non_blocking=True)
+
+        if args.discrete_mask:
+            tri_mask = random.sample(list(range(args.nb_classes - 1)), args.tri_mask_amount)
+            tri_mask = torch.tensor(tri_mask, dtype=torch.int64).to(device)
+            logits = logits.index_fill(dim=1, index=torch.Tensor(tri_mask), value=float('-inf'))
+
+        if args.continuous_mask:
+            tri_mask = torch.randn(logits.shape)
+            if args.cont_mask_type == 'add':
+                tri_mask = torch.sigmoid(tri_mask) + 1
+            elif args.cont_mask_type == 'mul':
+                tri_mask = torch.sigmoid(tri_mask) * 2.
+            tri_mask[:, -1] = 1.
+            tri_mask = tri_mask.to(device)
+            logits = logits*tri_mask
+
+        if args.unsharpened:
+            logits = logits.sign() * (logits.abs()) ** args.p
+
         # print(logits, target)
-        loss = criterion(logits, target) # base criterion (CrossEntropyLoss)
+        if args.use_bce:
+            loss = criterion(logits, targets_bce)
+        else:
+            loss = criterion(logits, target) # base criterion (CrossEntropyLoss)
         # if args.pull_constraint and 'reduce_sim' in output:
         #     loss = loss - args.pull_constraint_coeff * output['reduce_sim']
         if loss.item() < 0:
             print(logits, target)
+
+        if args.push:
+            # print(output['prompt_key'].shape)
+            # # print("value:", output['prompt_value'])
+            # print(output['prompt_idx'])
+            tri_prompt_reg = utils.push_and_pull(output['prompt_key'], idx=output['prompt_idx'][0], reduction=args.tri_reg_reduction, distance=args.tri_reg_distance) * args.tri_reg_coef
+            # print("reg:", tri_prompt_reg)
+            tri_prompt_reg += utils.push_and_pull(output['prompt_value'].view(output['prompt_value'].shape[0], -1), idx=output['prompt_idx'][0], reduction=args.tri_reg_reduction, distance=args.tri_reg_distance) * args.tri_reg_coef
+            # print("reg:", tri_prompt_reg)
+            # print("coeff:", args.tri_reg_coef)
+            # print("loss:", loss)
+            loss += tri_prompt_reg
 
         acc1, acc5 = accuracy(logits, target, topk=(1, 5))
 
