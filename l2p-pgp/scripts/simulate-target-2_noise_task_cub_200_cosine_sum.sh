@@ -14,9 +14,9 @@ for tri_lr in 1e-2 1e-3
 do
 for p_lr in 0.03 1e-3 1e-4 #0.03 #1e-3 0.03 1e-4
 do
-for tri_epochs in 20 50 #10 20
+for tri_epochs in 100 #20 50 #10 20
 do
-for tri_reg_coef in 1e-2 1e-4 1e-3 1e-1 1e-5
+for tri_reg_coef in 1e-2 1e-3 1e-5 #1e-4 1e-3 1e-1 1e-5
 do
 # process inputs
 SUBOUTDIR=logs_push_cosine_sum/cub200/attack_target_${lab}/output_simulate_noise_task/tri_lr_${tri_lr}_p_lr_${p_lr}_tri_epochs_${tri_epochs}/tri_reg_coef_${tri_reg_coef}

@@ -645,7 +645,7 @@ class Imagenet_R(torch.utils.data.Dataset):
         self.filename = 'imagenet-r.tar'
 
         self.fpath = os.path.join(root, 'imagenet-r')
-        if not os.path.isfile(self.fpath):
+        if not os.path.isfile(self.fpath) and not os.path.exists(os.path.join(root, 'imagenet-r')):
             if not download:
                raise RuntimeError('Dataset not found. You can use download=True to download it')
             else:

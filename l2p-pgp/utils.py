@@ -368,3 +368,8 @@ def push_and_pull(x, idx, reduction='mean', distance='l2', pull=False):
     #return cost_idx, - reg
     return -reg
 
+def log_mean(x: torch.Tensor, dim: int = 0):
+    return x.logsumexp(dim) - math.log(x.shape[dim])
+
+def entropy_l(l: torch.Tensor) -> torch.Tensor:
+    return - (l * l.exp()).sum(-1)

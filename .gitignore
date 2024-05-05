@@ -32,6 +32,14 @@ data/
 */.logs_discrete_mask/*
 */.logs_continuous_mask/*
 */.logs_bce/*
+*/logs_router/*
+*/.logs_router/*
+*/logs_router_task2/*
+*/.logs_router_task2/*
+*/.load_balancing/*
+*/load_balancing/*
+*/.load_balancing_task2/*
+*/load_balancing_task2/*
 *.pt
 *.pth
 *.pkl

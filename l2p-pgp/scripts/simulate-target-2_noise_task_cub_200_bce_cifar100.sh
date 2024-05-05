@@ -7,7 +7,7 @@ for tri_lr in 1e-2 1e-3
 do
 for p_lr in 0.03 1e-3 1e-4 #0.03 #1e-3 0.03 1e-4
 do
-for tri_epochs in 20 #10 20
+for tri_epochs in 50 #20 50 #10 20
 do
 # process inputs
 SUBOUTDIR=logs_bce/cifar100/attack_target_${lab}/output_simulate_noise_task/tri_lr_${tri_lr}_p_lr_${p_lr}_tri_epochs_${tri_epochs}

@@ -30,6 +30,8 @@ import utils
 import memory
 import random
 
+import torch.nn.functional as F
+
 
 def train_one_epoch(model: torch.nn.Module, original_model: torch.nn.Module, 
                     criterion, data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -703,7 +705,10 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
             else:
                 cls_features = None
         
-        output = model(new_images, task_id=task_id, cls_features=cls_features, train=train)
+        if args.router or args.prompt_dropout:
+            output = model(new_images, task_id=task_id, cls_features=cls_features, train=train, args=args)
+        else:
+            output = model(new_images, task_id=task_id, cls_features=cls_features, train=train)
         # print("Prompt value:", output['prompt_value'].shape, output['prompt_value'])
         # print("Prompt key:", output['prompt_key'].shape, output['prompt_key'])
         logits = output['logits']
@@ -742,6 +747,7 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
 
         if args.unsharpened:
             logits = logits.sign() * (logits.abs()) ** args.p
+            
 
         # print(logits, target)
         if args.use_bce:
@@ -764,6 +770,11 @@ def train_one_epoch_trigger(model: torch.nn.Module, original_model: torch.nn.Mod
             # print("coeff:", args.tri_reg_coef)
             # print("loss:", loss)
             loss += tri_prompt_reg
+
+        if args.load_balancing:
+            sel_d = F.log_softmax(output['similarity'], dim=-1)
+            sel_d = utils.log_mean(sel_d, -2)
+            loss += args.load_balancing_coef * ( -utils.entropy_l(sel_d).mean())
 
         acc1, acc5 = accuracy(logits, target, topk=(1, 5))
 

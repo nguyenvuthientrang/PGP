@@ -428,7 +428,7 @@ class CUB200(torch.utils.data.Dataset):
         self.filename = 'CUB200(2011).zip'
 
         fpath = os.path.join(root, self.filename)
-        if not os.path.isfile(fpath):
+        if not os.path.isfile(fpath) and not os.path.exists(os.path.join(root, 'CUB_200_2011')):
             if not download:
                raise RuntimeError('Dataset not found. You can use download=True to download it')
             else:
@@ -635,7 +635,7 @@ class Imagenet_R(torch.utils.data.Dataset):
         self.filename = 'imagenet-r.tar'
 
         self.fpath = os.path.join(root, 'imagenet-r')
-        if not os.path.isfile(self.fpath):
+        if not os.path.isfile(self.fpath) and not os.path.exists(os.path.join(root, 'imagenet-r')):
             if not download:
                raise RuntimeError('Dataset not found. You can use download=True to download it')
             else:

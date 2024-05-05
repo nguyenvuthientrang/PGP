@@ -1,0 +1,6 @@
+{"train_task": "0", "test_task": "0", "acc": "100.0000 (98.3000)"}
+{"train_task": "0", "test_task": "0", "acc": "100.0000 (100.0000)"}
+{"train_task": "1", "test_task": "0", "acc": "95.8333 (95.7000)"}
+{"train_task": "1", "test_task": "1", "acc": "95.8333 (95.1000)"}
+{"train_task": "1", "test_task": "0", "acc": "100.0000 (99.9000)"}
+{"train_task": "1", "test_task": "1", "acc": "100.0000 (99.8000)"}
