@@ -40,6 +40,8 @@ data/
 */load_balancing/*
 */.load_balancing_task2/*
 */load_balancing_task2/*
+*/.load_prompt_dropout/*
+*/load_prompt_dropout/*
 *.pt
 *.pth
 *.pkl
